@@ -3,20 +3,27 @@ services:
   grafana:
     image: grafana/grafana:8.3.4
     ports:
-      - "3000:3000"
+      - "13000:3000"
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning
       - ./grafana/dashboards:/etc/grafana/provisioning-dashboards
   prometheus:
     image: quay.io/prometheus/prometheus:v2.33.1
     ports:
-      - "9090:9090"
+      - "19090:9090"
     command:
       - --config.file=/etc/prometheus/prometheus.yml
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
   node-exporter:
     image: quay.io/prometheus/node-exporter:v1.3.1
+  mysql:
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: "root"
+      MYSQL_DATABASE: "POC_REF_TO_GRAFANA"
+    ports:
+      - "13306:3306"
   # influxdb:
   #   image: influxdb:2.1.1
   #   environment:
