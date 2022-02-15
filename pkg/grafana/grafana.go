@@ -9,9 +9,11 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"log"
+	"strings"
+	"time"
 )
 
-const ViewerAPIKey = "eyJrIjoibzBXVzFsenN1S1d1Nnh5amdnUVNTT1hSNTlydFpmaFciLCJuIjoiQUQiLCJpZCI6MX0="
+const ViewerAPIKey = "eyJrIjoiNnNyc0tKQmJrc3B1UUlpTHhCVlFra2NBNFR2cHV1U1giLCJuIjoidiIsImlkIjoxfQ=="
 
 const ExamplePanelRawURL = "http://localhost:13000/d/rYdddlPWk/node-exporter-full?orgId=1&refresh=1m&viewPanel=77"
 
@@ -56,7 +58,8 @@ type GrafanaPanelModel struct {
 }
 
 type GrafanaService struct {
-	grafanaClient *gapi.Client
+	grafanaClient   *gapi.Client
+	datasourceProxy DatasourceProxy
 }
 
 func NewGrafanaService(grafanaClient *gapi.Client) *GrafanaService {
@@ -98,11 +101,91 @@ func (it *GrafanaService) FetchPanelWithRawURL(ctx context.Context, rawURL strin
 	panic("implement me")
 }
 
-func (it GrafanaService) FetchAvailableVariableOfPanel(ctx context.Context, panel entity.GrafanaPanel) ([]entity.GrafanaPanelVariable, error) {
-	panic("implement me")
-
+func (it *GrafanaService) FetchAvailableVariableOfPanel(ctx context.Context, dashboard DashboardModel) ([]entity.GrafanaPanelVariable, error) {
+	var result []entity.GrafanaPanelVariable
+	templatingModels, ok := dashboard.Templating["list"]
+	if !ok {
+		return nil, nil
+	}
+	for _, item := range templatingModels {
+		result = append(result,
+			entity.GrafanaPanelVariable{
+				GrafanaPanelID: 0,
+				VariableName:   item.Name,
+				VariableType:   item.Type,
+			},
+		)
+	}
+	return result, nil
 }
 
-func (it GrafanaService) FetchMetricsFromPanel(ctx context.Context, panel entity.GrafanaPanel) (interface{}, error) {
-	panic("implement me")
+type VariableValue struct {
+	Variable string `json:"variable"`
+	Value    string `json:"value"`
+}
+
+type DatasourceProxyResponse struct {
+	Status string       `json:"status"`
+	Data   ResponseData `json:"data"`
+}
+
+type Point struct {
+	Time  time.Time
+	Value float64
+}
+
+type Metric struct {
+	Metric map[string]string `json:"metric"`
+	Values []Point           `json:"values"`
+}
+
+type ResponseData struct {
+	ResultType string          `json:"resultType"`
+	Result     []Metric        `json:"result"`
+	Data       []VariableValue `json:"data"`
+}
+
+func (it *GrafanaService) FetchMetricsFromPanel(ctx context.Context, panel entity.GrafanaPanel, datasourceID int64, variableValues []VariableValue) ([]DatasourceProxyResponse, error) {
+	panelIdentifier, err := FromRawURL(panel.RawURL)
+	if err != nil {
+		return nil, err
+
+	}
+
+	dashboard, err := it.DashboardByUID(panelIdentifier.DashboardUID)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []DatasourceProxyResponse
+	for _, target := range dashboard.Panels[panelIdentifier.PanelID].Targets {
+		renderedExpr := it.renderExpr(target.Expr, variableValues)
+		timeSeries, err := it.datasourceProxy.DatasourceQuery(ctx, datasourceID, renderedExpr, time.Now().Add(-time.Hour), time.Now(), "2s")
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, *timeSeries)
+	}
+	return result, nil
+}
+
+func (it *GrafanaService) DashboardByUID(dashboardUID string) (*DashboardModel, error) {
+	dashboard, err := it.grafanaClient.DashboardByUID(dashboardUID)
+	if err != nil {
+		return nil, errors.Wrapf(err, "fetch grafana dashbaord %s", dashboardUID)
+	}
+	var dashboardModel DashboardModel
+	err = mapstructure.Decode(dashboard.Model, &dashboardModel)
+	if err != nil {
+		return nil, errors.Wrapf(err, "parse grafana dashboard model: %s", dashboardUID)
+	}
+	return &dashboardModel, nil
+}
+
+func (it *GrafanaService) renderExpr(expr string, variableValues []VariableValue) string {
+	var result = expr
+	for _, item := range variableValues {
+		result = strings.Replace(result, item.Variable, item.Value, -1)
+	}
+	return result
 }

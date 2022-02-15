@@ -11,9 +11,9 @@ const keyOrgID = "orgId"
 const keyViewPanel = "viewPanel"
 
 type GrafanaPanelIdentifier struct {
+	OrgID        uint
 	DashboardUID string
 	PanelID      uint
-	OrgID        uint
 }
 
 func FromRawURL(rawURL string) (*GrafanaPanelIdentifier, error) {
