@@ -124,27 +124,6 @@ type VariableValue struct {
 	Value    string `json:"value"`
 }
 
-type DatasourceProxyResponse struct {
-	Status string       `json:"status"`
-	Data   ResponseData `json:"data"`
-}
-
-type Point struct {
-	Time  time.Time
-	Value float64
-}
-
-type Metric struct {
-	Metric map[string]string `json:"metric"`
-	Values []Point           `json:"values"`
-}
-
-type ResponseData struct {
-	ResultType string          `json:"resultType"`
-	Result     []Metric        `json:"result"`
-	Data       []VariableValue `json:"data"`
-}
-
 func (it *GrafanaService) FetchMetricsFromPanel(ctx context.Context, panel entity.GrafanaPanel, datasourceID int64, variableValues []VariableValue) ([]DatasourceProxyResponse, error) {
 	panelIdentifier, err := FromRawURL(panel.RawURL)
 	if err != nil {

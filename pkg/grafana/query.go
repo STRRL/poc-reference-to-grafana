@@ -7,8 +7,50 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 )
+
+type DatasourceProxyResponse struct {
+	Status string       `json:"status"`
+	Data   ResponseData `json:"data"`
+}
+
+type Point struct {
+	Time  time.Time
+	Value float64
+}
+
+func (it *Point) UnmarshalJSON(bytes []byte) error {
+	var temp []interface{}
+	err := json.Unmarshal(bytes, &temp)
+	if err != nil {
+		return err
+	}
+	it.Time = time.Unix((temp[0]).(int64), 0)
+	result, err := strconv.ParseFloat(temp[1].(string), 64)
+	if err != nil {
+		return err
+	}
+	it.Value = result
+
+	return nil
+}
+
+func (it *Point) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprintf("[%d, %f]", it.Time.Unix(), it.Value)), nil
+}
+
+type Metric struct {
+	Metric map[string]string `json:"metric"`
+	Values []Point           `json:"values"`
+}
+
+type ResponseData struct {
+	ResultType string          `json:"resultType"`
+	Result     []Metric        `json:"result"`
+	Data       []VariableValue `json:"data"`
+}
 
 type DatasourceProxy struct {
 	// host should contain schema like http, https

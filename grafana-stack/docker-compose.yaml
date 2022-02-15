@@ -25,15 +25,17 @@ services:
       MYSQL_DATABASE: "POC_REF_TO_GRAFANA"
     ports:
       - "13306:3306"
-  # influxdb:
-  #   image: influxdb:2.1.1
-  #   environment:
-  #     - DOCKER_INFLUXDB_INIT_MODE=setup
-  #     - DOCKER_INFLUXDB_INIT_USERNAME=admin
-  #     - DOCKER_INFLUXDB_INIT_PASSWORD=adminadmin
-  #     - DOCKER_INFLUXDB_INIT_ORG=strrl
-  #     - DOCKER_INFLUXDB_INIT_BUCKET=poc
-  #   ports:
-  #     - "8086:8086"
-  # telegraf:
-  #   image: telegraf:1.21.3
+  influxdb:
+    image: influxdb:2.1.1
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=adminadmin
+      - DOCKER_INFLUXDB_INIT_ORG=strrl
+      - DOCKER_INFLUXDB_INIT_BUCKET=poc
+    ports:
+      - "18086:8086"
+  telegraf:
+    image: telegraf:1.21.3
+    volumes:
+      - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
